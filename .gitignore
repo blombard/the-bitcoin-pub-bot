@@ -3,6 +3,7 @@
 /vendor/
 .env
 *.pem
+*.txt
 composer-setup.php
 composer.lock
 composer.phar

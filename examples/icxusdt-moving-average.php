@@ -1,6 +1,6 @@
 <?php
 print "Load the Biance API Framework\n";
-require 'vendor/autoload.php';
+require '../vendor/autoload.php';
 
 print "Initialize the variables and arrays we use\n";
 $i = 0;

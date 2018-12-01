@@ -1,5 +1,5 @@
 <?php
-require 'vendor/autoload.php';
+require '../vendor/autoload.php';
 function getprices()
 {
   $api = new Binance\API("<api key>","<secret>");
