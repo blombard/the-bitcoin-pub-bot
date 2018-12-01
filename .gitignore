@@ -1,0 +1,8 @@
+.DS_Store
+
+/vendor/
+.env
+*.pem
+composer-setup.php
+composer.lock
+composer.phar
