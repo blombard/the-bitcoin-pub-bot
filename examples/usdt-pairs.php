@@ -4,11 +4,12 @@ require '../vendor/autoload.php';
 // This bot will trade USDT to the other pairs and back to make more USDT
 // It shall use all the trading pairs to make more UDST except the ones we tell it not to use
 
-$strend = 20;             // Short Term Trend - must be less than $mtrend
-$mtrend = 40;             // Medium Term Trend - must be less than $ltrend
-$ltrend = 70;             // Long Term Trend
+$strend = 100;            // Short Term Trend - must be less than $mtrend
+$mtrend = 180;            // Medium Term Trend - must be less than $ltrend
+$ltrend = 280;            // Long Term Trend
 $tradefile = "USDT.txt";  // The Trade Logging file name
-$minspread = 1.4;         // The minimum spread percentage needed for a trade
+$minspread = 0.6;         // The minimum spread percentage needed for a trade
+$minrsi = 46;             // Relative Strength must be below this number to buy
 
 // Do not change any of the flags, we use this to signal the bot what to do and when
 $buyready = 0;            // This flag signals the bot that the pair meets rules to buy
@@ -26,6 +27,8 @@ $time_start = time();
 $time_end = 0;
 $run_time = 0;
 $rpc = 0;
+$tpc = 0;
+$q = 0;
 
 // API call to fetch pricing data from Binance
 function getprices()
@@ -82,6 +85,7 @@ for($i = 0; $i <= 2000000; $i++)
         ${$tick . "mtrend"} = 0;           // Medium Term Moving Trend
         ${$tick . "ltrend"} = 0;           // Long Term Moving Trend
         ${$tick . "mspread"} = 0;          // Medium Term Spread
+        ${$tick . "rsi"} = 0;              // Relative Strength Indicator for this pair
         ${$tick . "buyflag"} = $buyready;  // Set this pair to buyready
         ${$tick . "buyvalue"} = 0;         // record what we buy for on this pair
         ${$tick . "sellvalue"} = 0;        // record what we sell for on this pair
@@ -92,11 +96,14 @@ for($i = 0; $i <= 2000000; $i++)
       else
       {
 
-// Exclude BCASH cause I dont like them :P
+// Exclude List - these ones we do not trade
 
         if($key == "BCHABCUSDT") ${$tick . "buyflag"} = $dontbuy;
         if($key == "BCHSVUSDT") ${$tick . "buyflag"} = $dontbuy;
         if($key == "BCCUSDT") ${$tick . "buyflag"} = $dontbuy;
+        if($key == "TUSDUSDT") ${$tick . "buyflag"} = $dontbuy;
+        if($key == "VENUSDT") ${$tick . "buyflag"} = $dontbuy;
+				if($key == "PAXUSDT") ${$tick . "buyflag"} = $dontbuy;
 
 // Check if the trading pair has been initialised
 // this covers if Binance add a new trading pair on USDT while we are running
@@ -157,29 +164,155 @@ for($i = 0; $i <= 2000000; $i++)
             $mhigh = max(${$tick . "mt"});
             ${$tick . "mspread"} = round(((1-($mlow/$mhigh))*100),3);
 
+// Calculate the Relative Strength Indicator on the Long Term Array
+// A Low RSI indicates a buy opportunity
+            $rsitck = 0;
+            ${$tick . "gain"} = array();
+            ${$tick . "loss"} = array();
+            foreach(${$tick . "lt"} as $cdaval)
+            {
+              if($rsitck == 0)
+              {
+                $cdagain = 0;
+                $cdaloss = 0;
+              }
+              else
+              {
+                if($cdaval == $cdaprev)
+                {
+                  $cdagain = 0;
+                  $cdaloss = 0;
+                }
+                elseif($cdaval > $cdaprev)
+                {
+                  $cdacalc = $cdaval - $cdaprev;
+                  $cdagain = number_format($cdacalc,8);
+                  $cdaloss = 0;
+                }
+                else
+                {
+                  $cdacalc = $cdaprev - $cdaval;
+                  $cdaloss = number_format($cdacalc,8);
+                  $cdagain = 0;
+                }
+              }
+              array_push(${$tick . "gain"}, $cdagain);
+              array_push(${$tick . "loss"}, $cdaloss);
+              $cdaprev = $cdaval;
+              $rsitck++;
+            }
+            $cdarsgain = (array_sum(${$tick . "gain"})) / $ltrend;
+            $cdarsloss = (array_sum(${$tick . "loss"})) / $ltrend;
+            if($cdarsloss > 0)
+            {
+              ${$tick . "rsi"} = round(100-(100/(1+($cdarsgain/$cdarsloss))),3);
+              if(${$tick . "rsi"} == 0) ${$tick . "rsi"} = 0;
+            }
+            else
+            {
+              ${$tick . "rsi"} = 100;
+            }
+
 // Print out what we have so far so we can see what is going on
             printf("%-9s",$key);
             print "\tV:";
-            printf("%08.8F",$value);
-            print "\tST:";
-            printf("%08.8F",${$tick . "stavg"});
-            if(${$tick . "strend"} == 1) print ":DOWN   ";
-            if(${$tick . "strend"} == 2) print ":FLAT   ";
-            if(${$tick . "strend"} == 3) print ":UP     ";
-            print "\tMT:";
-            printf("%08.8F",${$tick . "mtavg"});
-            if(${$tick . "mtrend"} == 1) print ":DOWN   ";
-            if(${$tick . "mtrend"} == 2) print ":FLAT   ";
-            if(${$tick . "mtrend"} == 3) print ":UP     ";
-            print "\tLT:";
-            printf("%08.8F",${$tick . "ltavg"});
-            if(${$tick . "ltrend"} == 1) print ":DOWN   ";
-            if(${$tick . "ltrend"} == 2) print ":FLAT   ";
-            if(${$tick . "ltrend"} == 3) print ":UP     ";
-            print "\tSPREAD:${$tick . "mspread"}% \n";
+            printf("%-14.8F",$value);
+            print "\t  ST:";
+            printf("%-14.8F",${$tick . "stavg"});
+            if(${$tick . "strend"} == 1) printf("%-5s",":DOWN");
+            if(${$tick . "strend"} == 2) printf("%-5s",":FLAT");
+            if(${$tick . "strend"} == 3) printf("%-5s",":UP");
+            print "\t  MT:";
+            printf("%-14.8F",${$tick . "mtavg"});
+            if(${$tick . "mtrend"} == 1) printf("%-5s",":DOWN");
+            if(${$tick . "mtrend"} == 2) printf("%-5s",":FLAT");
+            if(${$tick . "mtrend"} == 3) printf("%-5s",":UP");
+            print "\t  LT:";
+            printf("%-14.8F",${$tick . "ltavg"});
+            if(${$tick . "ltrend"} == 1) printf("%-5s",":DOWN");
+            if(${$tick . "ltrend"} == 2) printf("%-5s",":FLAT");
+            if(${$tick . "ltrend"} == 3) printf("%-5s",":UP");
+            print "\t  SPREAD:";
+            printf("%-03.3F",${$tick . "mspread"});
+            print "%\t  RSI:";
+						printf("%-06.3F",${$tick . "rsi"});
+						if(${$tick . "buyflag"} == $buyready) $cdastatus = "Buy Ready";
+						if(${$tick . "buyflag"} == $buyprep) $cdastatus = "Buy Prep";
+						if(${$tick . "buyflag"} == $buyord) $cdastatus = "Buy Order";
+						if(${$tick . "buyflag"} == $sellok) $cdastatus = "Sell OK";
+						if(${$tick . "buyflag"} == $sellready) $cdastatus = "Sell Ready";
+						if(${$tick . "buyflag"} == $selldone) $cdastatus = "Sell Done";
+						if(${$tick . "buyflag"} == $dontbuy) $cdastatus = "Dont Trade";
+						print "\tS:$cdastatus \n";
 
-// No rules or anything yet, just printing what we have to show you what is done so far.
+// Trading rules start here
+// ========================
 
+// CDA is trending up so set to buyprep
+            if(${$tick . "buyflag"} == $buyready AND ${$tick . "strend"}==3 AND ${$tick . "mtrend"}==3 AND ${$tick . "ltrend"}==3)
+            {
+              printf("%-9s",$key);
+              print "Was Buyready, now Buyprep V:$value\n";
+              ${$tick . "buyflag"} = $buyprep;
+            }
+
+// CDA was buyprep, now trending down, set to buyord if reasonable spread
+            if(${$tick . "buyflag"} == $buyprep AND ${$tick . "strend"}==1 AND ${$tick . "mtrend"}==1 AND ${$tick . "ltrend"}==1 AND ${$tick . "mspread"} >= $minspread)
+            {
+              printf("%-9s",$key);
+              print "Was Buyprep, now Buyord V:$value\n";
+              ${$tick . "buyflag"} = $buyord;
+            }
+
+// CDA stopped trending down and is ready to buy
+            if(${$tick . "buyflag"} == $buyord AND ${$tick . "strend"}!=1 AND ${$tick . "rsi"} <= $minrsi)
+            {
+              printf("%-9s",$key);
+              print "Was Buyord, now Buy V:$value\n";
+// Assume we buy at the current value
+              ${$tick . "buyvalue"} = $value;
+              ${$tick . "buyflag"} = $sellok;
+							$fh = fopen($tradefile, "a") or die("Cannot open file");
+              fwrite($fh, "========================== \n");
+              fwrite($fh, "Runtime $run_time \n");
+              fwrite($fh, "Buy on $key BV:${$tick . "buyvalue"} \n");
+              fwrite($fh, "========================== \n");
+              fclose($fh);
+            }
+
+// Buy Order on CDA placed, do order tracking here to make sure order completes
+            if(${$tick . "buyflag"} == $sellok)
+            {
+// Since we are not placing an order, we just assume it completed
+              ${$tick . "buyflag"} = $sellready;
+            }
+
+// CDA is sellready and is no longer trending upwards - time to sell
+            if(${$tick . "buyflag"} == $sellready AND ${$tick . "strend"}!=3 AND ${$tick . "mtrend"}!=3)
+            {
+// Assume we sell at the current value
+              ${$tick . "sellvalue"} = $value;
+              ${$tick . "buyflag"} = $selldone;
+		        }
+
+// CDA is selldone
+            if(${$tick . "buyflag"} == $selldone)
+            {
+// Sell Order on CDA placed, do order tracking here to make sure order completes
+// Since we are not placing an order, we just assume it completed
+              $q = round((((${$tick . "sellvalue"} - ${$tick . "buyvalue"})/${$tick . "buyvalue"})*100),3);
+              $tpc = $q - 0.2;
+              $rpc = $rpc + $tpc;
+              ${$tick . "buyflag"} = $buyready;
+              printf("%-9s",$key);
+              print "Sell Done BV:${$tick . "buyvalue"} SV:${$tick . "sellvalue"} TPC:$tpc \n";
+              $fh = fopen($tradefile, "a") or die("Cannot open file");
+              fwrite($fh, "========================== \n");
+              fwrite($fh, "Runtime $run_time \n");
+              fwrite($fh, "Sell Done on $key BV:${$tick . "buyvalue"} SV:${$tick . "sellvalue"} TPC:$tpc \n");
+              fwrite($fh, "========================== \n");
+              fclose($fh);
+						}
           }
         }
       }
