@@ -1,6 +1,6 @@
 # The bitcoin pub php crypto bot
 
-### Installation
+## Installation
 
 #### Windows
 https://thebitcoin.pub/t/mike-fishy-and-automation-system-programming-bots/36481/178
@@ -21,14 +21,29 @@ If php isn't installed :
 https://thewebtier.com/php/installing-php-7-2-osx-homebrew/
 
 
-### Clone this repo
-
+## Clone this repo
 ```
 git clone https://github.com/blombard/the-bitcoin-pub-bot.git
 ```
 
-then
+then :
 ```
 cd the-bitcoin-pub-bot
 composer require "jaggedsoft/php-binance-api @dev"
 ```
+
+## How to use it
+Navigate in you terminal to the right directory then do :
+```
+composer run
+```
+It will run the usdt-pairs.php script.
+
+If you want to play with the other scripts, go in the 'examples' folder and do :
+```
+php <file name>.php
+```
+
+## Questions ?
+
+Ask them in this thread : https://thebitcoin.pub/t/mike-fishy-and-automation-system-programming-bots/36481

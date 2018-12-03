@@ -1,5 +1,5 @@
 <?php
-require '../vendor/autoload.php';
+require 'vendor/autoload.php';
 
 // This bot will trade USDT to the other pairs and back to make more USDT
 // It shall use all the trading pairs to make more UDST except the ones we tell it not to use
