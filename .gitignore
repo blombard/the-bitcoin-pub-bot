@@ -4,6 +4,7 @@
 .env
 *.pem
 *.txt
+*.png
 composer-setup.php
 composer.lock
 composer.phar
