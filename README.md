@@ -33,11 +33,10 @@ composer require "jaggedsoft/php-binance-api @dev"
 ```
 
 ## How to use it
-Navigate in you terminal to the right directory then do :
 ```
 composer run
 ```
-It will run the usdt-pairs.php script.
+It will run the btc-pairs.php script.
 
 If you want to play with the other scripts, go in the 'examples' folder and do :
 ```

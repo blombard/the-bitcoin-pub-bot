@@ -3,6 +3,6 @@
         "jaggedsoft/php-binance-api": "@dev"
     },
     "scripts": {
-        "run": "php usdt-pairs.php"
+        "run": "php btc-pairs.php"
     }
 }
