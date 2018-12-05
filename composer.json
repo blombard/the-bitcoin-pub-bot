@@ -4,5 +4,8 @@
     },
     "scripts": {
         "run": "php btc-pairs.php"
+    },
+    "config": {
+      "process-timeout":0
     }
 }
