@@ -4,6 +4,7 @@ require 'vendor/autoload.php';
 // This bot will trade USDT to the other pairs and back to make more USDT
 // It shall use all the trading pairs to make more UDST except the ones we tell it not to use
 
+$interval = 5;                   // interval between price sampling
 $init_stperiod = 50;             // Short Term Trend - must be less than $mtperiod
 $init_mtperiod = 90;             // Medium Term Trend - must be less than $ltperiod
 $init_ltperiod = 120;            // Long Term Trend
@@ -86,7 +87,11 @@ else
 for($i = 0; $i <= 2000000; $i++)
 {
   $time_end = time();
-  $run_time = round((($time_end - $time_start)/60),2);
+  if ($replay == 1) {
+    $run_time = round(($i * $interval) / 60, 2);
+  } else {
+    $run_time = round((($time_end - $time_start)/60),2);
+  }
   print "====================================\n";
   print "Iteration = $i ($simulation_mode) \n";
   print "Running Time: $run_time mins \n";
@@ -163,6 +168,8 @@ for($i = 0; $i <= 2000000; $i++)
         ${$tick . "lasttrade"} = 0;          // record we have had one trade done
         ${$tick . "lasttpc"} = 0;            // record what percentage last the trade was
         ${$tick . "isset"} = 1;              // used to signal we are initialised for this pair
+        ${$tick . "trade_start"} = 0;        // start of currently open trade
+        ${$tick . "trade_cycles"} = array(); // track each trade cycle length
       }
 
       // We are not on the first loop anymore, we proceed with processing the data
@@ -299,6 +306,13 @@ for($i = 0; $i <= 2000000; $i++)
               printf("%-9s",$key);
               print "\tV:";
               printf("%-14.8F",$value);
+              if(${$tick . "tradeflag"} == $sellready) {
+                print "\tCTC:";
+                printf("%-3.2F", ($run_time - ${$tick . "trade_start"}));
+              } else {
+                print "\tATC:";
+                printf("%-3.2F", ${$tick . "trade_cycle_avg"});
+              }
               print "\t  ST:";
               printf("%-14.8F",${$tick . "stavg"});
               if(${$tick . "stdir"} == $down) printf("%-5s",":DOWN");
@@ -370,6 +384,7 @@ for($i = 0; $i <= 2000000; $i++)
                   // Assume we buy at the current value
                   ${$tick . "buyvalue"} = $value;
                   ${$tick . "tradeflag"} = $sellok;
+                  ${$tick . "trade_start"} = $run_time;
                   $cdaorders = $cdaorders + 1;
                   $fh = fopen($tradefile, "a") or die("Cannot open file");
                   fwrite($fh, "========================== \n");
@@ -422,13 +437,15 @@ for($i = 0; $i <= 2000000; $i++)
               ${$tick . "lasttrade"} = 1;
               ${$tick . "lasttpc"} = $tpc;
               ${$tick . "tradeflag"} = $buyready;
+              array_push(${$tick . "trade_cycles"} , ($run_time - ${$tick . "trade_start"}));
+              ${$tick . "trade_cycle_avg"} = round((array_sum(${$tick . "trade_cycles"})/count(${$tick . "trade_cycles"})),3);
               $cdaorders = $cdaorders - 1;
               printf("%-9s",$key);
-              print "Sell Done BV:${$tick . "buyvalue"} SV:${$tick . "sellvalue"} TPC:$tpc \n";
+              print "Sell Done BV:${$tick . "buyvalue"} SV:${$tick . "sellvalue"} TPC:$tpc ATC:${$tick . "trade_cycle_avg"}\n";
               $fh = fopen($tradefile, "a") or die("Cannot open file");
               fwrite($fh, "========================== \n");
               fwrite($fh, "Runtime $run_time \n");
-              fwrite($fh, "Sell Done on $key BV:${$tick . "buyvalue"} SV:${$tick . "sellvalue"} TPC:$tpc RPC:$rpc \n");
+              fwrite($fh, "Sell Done on $key BV:${$tick . "buyvalue"} SV:${$tick . "sellvalue"} TPC:$tpc RPC:$rpc ATC:${$tick . "trade_cycle_avg"}\n");
               fwrite($fh, "========================== \n");
               fclose($fh);
             }
@@ -437,6 +454,6 @@ for($i = 0; $i <= 2000000; $i++)
       }
     }
   }
-  if ($replay == 0) sleep(5);
+  if ($replay == 0) sleep($interval);
 }
 ?>
